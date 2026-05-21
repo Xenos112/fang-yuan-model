@@ -1,32 +1,37 @@
 import json
-import torch
-from datasets import Dataset, DatasetDict
+import tempfile
+import os
+from datasets import load_dataset
 from unsloth import FastLanguageModel, is_bfloat16_supported
 from unsloth.chat_templates import get_chat_template, train_on_responses_only
 from trl import SFTTrainer, SFTConfig
-from transformers import TrainingArguments
 from config import Paths, ModelConfig
 
 
-def load_dataset_from_json(path: str) -> DatasetDict:
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    formatted = []
-    for entry in data:
-        messages = [
-            {"role": "user", "content": f"{entry['instruction']}\n{entry['input']}"},
-            {"role": "assistant", "content": entry["output"]},
-        ]
-        formatted.append({"messages": messages})
-
-    full = Dataset.from_list(formatted)
-    split = full.train_test_split(test_size=0.05, seed=42)
-    return DatasetDict({"train": split["train"], "test": split["test"]})
+def format_entry(entry):
+    return {
+        "text": (
+            f"<start_of_turn>user\n{entry['instruction']}\n{entry['input']}<end_of_turn>\n"
+            f"<start_of_turn>model\n{entry['output']}<end_of_turn>"
+        ),
+    }
 
 
 def main():
-    dataset = load_dataset_from_json(Paths["dataset"])
+    with open(Paths["dataset"], "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    # Write JSONL to a temp file (avoids dill/pickle Python 3.14 bug with Dataset.from_list)
+    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False, encoding="utf-8")
+    for entry in data:
+        tmp.write(json.dumps(format_entry(entry), ensure_ascii=False) + "\n")
+    tmp.close()
+
+    full = load_dataset("json", data_files=tmp.name, split="train")
+    split = full.train_test_split(test_size=0.05, seed=42)
+    dataset = {"train": split["train"], "test": split["test"]}
+    os.unlink(tmp.name)
+
     print(f"Train: {len(dataset['train'])} | Test: {len(dataset['test'])}")
 
     model, tokenizer = FastLanguageModel.from_pretrained(
@@ -43,13 +48,8 @@ def main():
         model,
         r=16,
         target_modules=[
-            "q_proj",
-            "k_proj",
-            "v_proj",
-            "o_proj",
-            "gate_proj",
-            "up_proj",
-            "down_proj",
+            "q_proj", "k_proj", "v_proj", "o_proj",
+            "gate_proj", "up_proj", "down_proj",
         ],
         lora_alpha=16,
         lora_dropout=0,
@@ -83,7 +83,7 @@ def main():
         save_total_limit=2,
         load_best_model_at_end=True,
         report_to="none",
-        dataset_text_field="",
+        dataset_text_field="text",
         max_seq_length=ModelConfig["max_seq_length"],
         packing=False,
     )
