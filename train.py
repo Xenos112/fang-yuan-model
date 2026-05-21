@@ -1,8 +1,8 @@
 import json
 import pyarrow as pa
-from datasets import Dataset, DatasetDict
+from datasets import Dataset
 from unsloth import FastLanguageModel, is_bfloat16_supported
-from unsloth.chat_templates import get_chat_template, train_on_responses_only
+from unsloth.chat_templates import train_on_responses_only
 from trl import SFTTrainer, SFTConfig
 from config import Paths, ModelConfig
 
@@ -11,21 +11,7 @@ def main():
     with open(Paths["dataset"], "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    texts = []
-    for entry in data:
-        text = (
-            f"<start_of_turn>user\n{entry['instruction']}\n{entry['input']}<end_of_turn>\n"
-            f"<start_of_turn>model\n{entry['output']}<end_of_turn>"
-        )
-        texts.append(text)
-
-    # Build Dataset directly via Arrow table — avoids dill fingerprint crash on Python 3.14
-    table = pa.table({"text": pa.array(texts, type=pa.string())})
-    full = Dataset(table, fingerprint="00000")
-    split = full.train_test_split(test_size=0.05, seed=42)
-
-    print(f"Train: {len(split['train'])} | Test: {len(split['test'])}")
-
+    # Load model first so we can use its tokenizer to format data
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=ModelConfig["model_name"],
         max_seq_length=ModelConfig["max_seq_length"],
@@ -34,7 +20,22 @@ def main():
         device_map="auto",
     )
 
-    tokenizer = get_chat_template(tokenizer, chat_template="gemma")
+    # The 'it' model already has the correct Gemma 4 chat template — use it
+    texts = []
+    for entry in data:
+        messages = [
+            {"role": "user", "content": f"{entry['instruction']}\n{entry['input']}"},
+            {"role": "assistant", "content": entry["output"]},
+        ]
+        text = tokenizer.apply_chat_template(messages, tokenize=False)
+        texts.append(text)
+
+    table = pa.table({"text": pa.array(texts, type=pa.string())})
+    full = Dataset(table, fingerprint="00000")
+    split = full.train_test_split(test_size=0.05, seed=42)
+
+    print(f"Train: {len(split['train'])} | Test: {len(split['test'])}")
+    print(f"Example:\n{texts[0]}\n")
 
     model = FastLanguageModel.get_peft_model(
         model,
@@ -90,8 +91,8 @@ def main():
 
     trainer = train_on_responses_only(
         trainer,
-        instruction_part="<start_of_turn>user\n",
-        response_part="<start_of_turn>model\n",
+        instruction_part="<|turn|>user\n",
+        response_part="<|turn|>model\n",
     )
 
     print("Starting training...")
