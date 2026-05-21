@@ -1,38 +1,30 @@
 import json
-import tempfile
-import os
-from datasets import load_dataset
+import pyarrow as pa
+from datasets import Dataset, DatasetDict
 from unsloth import FastLanguageModel, is_bfloat16_supported
 from unsloth.chat_templates import get_chat_template, train_on_responses_only
 from trl import SFTTrainer, SFTConfig
 from config import Paths, ModelConfig
 
 
-def format_entry(entry):
-    return {
-        "text": (
-            f"<start_of_turn>user\n{entry['instruction']}\n{entry['input']}<end_of_turn>\n"
-            f"<start_of_turn>model\n{entry['output']}<end_of_turn>"
-        ),
-    }
-
-
 def main():
     with open(Paths["dataset"], "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    # Write JSONL to a temp file (avoids dill/pickle Python 3.14 bug with Dataset.from_list)
-    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False, encoding="utf-8")
+    texts = []
     for entry in data:
-        tmp.write(json.dumps(format_entry(entry), ensure_ascii=False) + "\n")
-    tmp.close()
+        text = (
+            f"<start_of_turn>user\n{entry['instruction']}\n{entry['input']}<end_of_turn>\n"
+            f"<start_of_turn>model\n{entry['output']}<end_of_turn>"
+        )
+        texts.append(text)
 
-    full = load_dataset("json", data_files=tmp.name, split="train")
+    # Build Dataset directly via Arrow table — avoids dill fingerprint crash on Python 3.14
+    table = pa.table({"text": pa.array(texts, type=pa.string())})
+    full = Dataset(table, fingerprint="00000")
     split = full.train_test_split(test_size=0.05, seed=42)
-    dataset = {"train": split["train"], "test": split["test"]}
-    os.unlink(tmp.name)
 
-    print(f"Train: {len(dataset['train'])} | Test: {len(dataset['test'])}")
+    print(f"Train: {len(split['train'])} | Test: {len(split['test'])}")
 
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=ModelConfig["model_name"],
@@ -92,8 +84,8 @@ def main():
         model=model,
         tokenizer=tokenizer,
         args=sft_config,
-        train_dataset=dataset["train"],
-        eval_dataset=dataset["test"],
+        train_dataset=split["train"],
+        eval_dataset=split["test"],
     )
 
     trainer = train_on_responses_only(
