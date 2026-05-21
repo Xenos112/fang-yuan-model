@@ -1,10 +1,9 @@
-"""Convert trained model to 4-bit merged for fast loading."""
-from pathlib import Path
+"""Convert the trained model to GGUF for instant loading."""
 from unsloth import FastLanguageModel
 from config import Paths, ModelConfig
 
 model_path = str(Paths["model_output"])
-output_path = str(Paths["model_output"] / "4bit")
+gguf_path = str(Paths["model_output"] / "gguf")
 
 print(f"Loading trained model from {model_path} (slow once)...")
 model, tokenizer = FastLanguageModel.from_pretrained(
@@ -15,10 +14,10 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     device_map="auto",
 )
 
-print(f"Saving as 4-bit merged to {output_path}...")
-model.save_pretrained_merged(
-    output_path,
+print(f"Saving as GGUF Q4_K_M to {gguf_path}...")
+model.save_pretrained_gguf(
+    gguf_path,
     tokenizer,
-    save_method="merged_4bit_forced",
+    quantization_method="q4_k_m",
 )
-print("Done! Future loads will be fast.")
+print("Done! GGUF saved.")

@@ -34,7 +34,7 @@ def main():
         max_seq_length=ModelConfig["max_seq_length"],
         load_in_4bit=ModelConfig["load_in_4bit"],
         dtype=None,
-        device_map="auto",
+        device_map=0,
     )
     print(f"Model loaded in {time.time() - t0:.1f}s")
     FastLanguageModel.for_inference(model)
