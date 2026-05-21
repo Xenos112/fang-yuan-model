@@ -58,11 +58,14 @@ def main():
         outputs = model.generate(
             inputs,
             attention_mask=attention_mask,
-            max_new_tokens=256,
+            max_new_tokens=128,
             temperature=0.7,
             top_p=0.9,
             repetition_penalty=1.1,
             do_sample=True,
+            use_cache=True,
+            eos_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.pad_token_id,
         )
         response = tokenizer.decode(outputs[0][inputs.shape[1]:], skip_special_tokens=True)
         print(f"\nFang Yuan: {response}\n")
