@@ -61,7 +61,7 @@ def main():
         gradient_accumulation_steps=4,
         warmup_steps=10,
         learning_rate=2e-4,
-        embedding_learning_rate=2e-5,
+
         fp16=not is_bfloat16_supported(),
         bf16=is_bfloat16_supported(),
         logging_steps=1,
