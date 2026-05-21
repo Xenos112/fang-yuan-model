@@ -27,6 +27,7 @@ inputs = tokenizer.apply_chat_template(
     add_generation_prompt=True,
     tokenize=True,
     return_tensors="pt",
+    enable_thinking=True,
 ).to("cuda")
 
 print(f"Input shape: {inputs.shape}")

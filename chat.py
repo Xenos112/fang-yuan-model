@@ -51,6 +51,7 @@ def main():
             add_generation_prompt=True,
             tokenize=True,
             return_tensors="pt",
+            enable_thinking=True,
         ).to("cuda")
 
         attention_mask = (inputs != tokenizer.pad_token_id).long().to("cuda")
