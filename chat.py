@@ -1,14 +1,13 @@
 import argparse
+import sys
 from unsloth import FastLanguageModel
 from config import Paths, ModelConfig
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", "-m", default=None,
-                        help="Model path or name. Default: trained model if exists, else base model.")
-    parser.add_argument("--base", action="store_true",
-                        help="Use the base HuggingFace model instead of trained model.")
+    parser.add_argument("--model", "-m", default=None)
+    parser.add_argument("--base", action="store_true")
     args = parser.parse_args()
 
     if args.base:
@@ -21,7 +20,7 @@ def main():
             model_name = str(trained_path)
         else:
             model_name = ModelConfig["model_name"]
-            print(f"No trained model found at {trained_path}, using base model {model_name}")
+            print(f"No trained model found, using base model {model_name}")
 
     print(f"Loading {model_name}...")
     model, tokenizer = FastLanguageModel.from_pretrained(
@@ -36,10 +35,12 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    print("\nFang Yuan model ready. Type 'quit' to exit.\n")
+    print("\n=== Fang Yuan Chat ===")
+    print("Describe a situation — he'll respond in-character.")
+    print("Type 'quit' to exit.\n")
 
     while True:
-        context = input("Context (situation): ").strip()
+        context = input("You: ").strip()
         if context.lower() in ("quit", "exit", ""):
             break
 
@@ -56,10 +57,15 @@ def main():
 
         attention_mask = (inputs != tokenizer.pad_token_id).long().to("cuda")
 
-        outputs = model.generate(
+        print("Fang Yuan: ", end="", flush=True)
+
+        from transformers import TextStreamer
+        streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+
+        model.generate(
             inputs,
             attention_mask=attention_mask,
-            max_new_tokens=128,
+            max_new_tokens=256,
             temperature=0.7,
             top_p=0.9,
             repetition_penalty=1.1,
@@ -67,9 +73,9 @@ def main():
             use_cache=True,
             eos_token_id=tokenizer.eos_token_id,
             pad_token_id=tokenizer.pad_token_id,
+            streamer=streamer,
         )
-        response = tokenizer.decode(outputs[0][inputs.shape[1]:], skip_special_tokens=True)
-        print(f"\nFang Yuan: {response}\n")
+        print()
 
 
 if __name__ == "__main__":
