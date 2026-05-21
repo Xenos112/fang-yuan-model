@@ -2,7 +2,6 @@ import json
 import pyarrow as pa
 from datasets import Dataset
 from unsloth import FastLanguageModel, is_bfloat16_supported
-from unsloth.chat_templates import train_on_responses_only
 from trl import SFTTrainer, SFTConfig
 from config import Paths, ModelConfig
 
@@ -87,12 +86,6 @@ def main():
         args=sft_config,
         train_dataset=split["train"],
         eval_dataset=split["test"],
-    )
-
-    trainer = train_on_responses_only(
-        trainer,
-        instruction_part="<|turn|>user\n",
-        response_part="<|turn|>model\n",
     )
 
     print("Starting training...")
