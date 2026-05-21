@@ -16,13 +16,19 @@ def main():
         model_name = args.model
     else:
         trained_path = Paths["model_output"]
-        if trained_path.exists():
+        # Prefer 4-bit conversion if it exists
+        fourbit_path = trained_path / "4bit"
+        if fourbit_path.exists():
+            model_name = str(fourbit_path)
+        elif trained_path.exists():
             model_name = str(trained_path)
         else:
             model_name = ModelConfig["model_name"]
             print(f"No trained model found, using base model {model_name}")
 
     print(f"Loading {model_name}...")
+    import time
+    t0 = time.time()
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=model_name,
         max_seq_length=ModelConfig["max_seq_length"],
@@ -30,6 +36,7 @@ def main():
         dtype=None,
         device_map="auto",
     )
+    print(f"Model loaded in {time.time() - t0:.1f}s")
     FastLanguageModel.for_inference(model)
 
     if tokenizer.pad_token is None:

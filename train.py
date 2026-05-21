@@ -95,7 +95,7 @@ def main():
     model.save_pretrained_merged(
         str(Paths["model_output"]),
         tokenizer,
-        save_method="merged_16bit",
+        save_method="merged_4bit_forced",
     )
     print("Done!")
 
