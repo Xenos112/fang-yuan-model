@@ -33,6 +33,9 @@ def main():
     )
     FastLanguageModel.for_inference(model)
 
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
     print("\nFang Yuan model ready. Type 'quit' to exit.\n")
 
     while True:
@@ -50,12 +53,16 @@ def main():
             return_tensors="pt",
         ).to("cuda")
 
+        attention_mask = (inputs != tokenizer.pad_token_id).long().to("cuda")
+
         outputs = model.generate(
             inputs,
+            attention_mask=attention_mask,
             max_new_tokens=256,
             temperature=0.7,
             top_p=0.9,
             repetition_penalty=1.1,
+            do_sample=True,
         )
         response = tokenizer.decode(outputs[0][inputs.shape[1]:], skip_special_tokens=True)
         print(f"\nFang Yuan: {response}\n")
