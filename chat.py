@@ -41,7 +41,7 @@ def main():
             break
 
         messages = [
-            {"role": "user", "content": f"Analyze the situation and respond as Fang Yuan.\nContext: {context}"},
+            {"role": "user", "content": [{"type": "text", "text": f"Analyze the situation and respond as Fang Yuan.\nContext: {context}"}]},
         ]
         inputs = tokenizer.apply_chat_template(
             messages,

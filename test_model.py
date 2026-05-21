@@ -20,7 +20,7 @@ def main():
 
     for i, entry in enumerate(test_samples):
         messages = [
-            {"role": "user", "content": f"{entry['instruction']}\n{entry['input']}"},
+            {"role": "user", "content": [{"type": "text", "text": f"{entry['instruction']}\n{entry['input']}"}]},
         ]
         inputs = tokenizer.apply_chat_template(
             messages,

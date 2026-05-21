@@ -23,8 +23,8 @@ def main():
     texts = []
     for entry in data:
         messages = [
-            {"role": "user", "content": f"{entry['instruction']}\n{entry['input']}"},
-            {"role": "assistant", "content": entry["output"]},
+            {"role": "user", "content": [{"type": "text", "text": f"{entry['instruction']}\n{entry['input']}"}]},
+            {"role": "assistant", "content": [{"type": "text", "text": entry["output"]}]},
         ]
         text = tokenizer.apply_chat_template(messages, tokenize=False)
         texts.append(text)
