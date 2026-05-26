@@ -1,4 +1,5 @@
 from unsloth import FastLanguageModel
+from unsloth.chat_templates import get_chat_template
 from config import Paths, ModelConfig
 
 model_path = str(Paths["model_output"])
@@ -13,6 +14,7 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     dtype=None,
     device_map="auto",
 )
+tokenizer = get_chat_template(tokenizer, chat_template="gemma-4-thinking")
 FastLanguageModel.for_inference(model)
 
 if tokenizer.pad_token is None:
@@ -20,7 +22,7 @@ if tokenizer.pad_token is None:
 
 prompt = "Analyze the situation and respond as Fang Yuan.\nContext: A young man asks you who you are."
 messages = [
-    {"role": "user", "content": [{"type": "text", "text": prompt}]},
+    {"role": "user", "content": prompt},
 ]
 inputs = tokenizer.apply_chat_template(
     messages,

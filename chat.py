@@ -1,6 +1,7 @@
 import argparse
 import sys
 from unsloth import FastLanguageModel
+from unsloth.chat_templates import get_chat_template
 from config import Paths, ModelConfig
 
 
@@ -16,7 +17,6 @@ def main():
         model_name = args.model
     else:
         trained_path = Paths["model_output"]
-        # Prefer 4-bit conversion if it exists
         fourbit_path = trained_path / "4bit"
         if fourbit_path.exists():
             model_name = str(fourbit_path)
@@ -34,8 +34,9 @@ def main():
         max_seq_length=ModelConfig["max_seq_length"],
         load_in_4bit=ModelConfig["load_in_4bit"],
         dtype=None,
-        device_map=0,
+        device_map="auto",
     )
+    tokenizer = get_chat_template(tokenizer, chat_template="gemma-4-thinking")
     print(f"Model loaded in {time.time() - t0:.1f}s")
     FastLanguageModel.for_inference(model)
 
@@ -52,7 +53,7 @@ def main():
             break
 
         messages = [
-            {"role": "user", "content": [{"type": "text", "text": f"Analyze the situation and respond as Fang Yuan.\nContext: {context}"}]},
+            {"role": "user", "content": f"Analyze the situation and respond as Fang Yuan.\nContext: {context}"},
         ]
         inputs = tokenizer.apply_chat_template(
             messages,

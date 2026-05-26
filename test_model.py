@@ -1,5 +1,6 @@
 import json
 from unsloth import FastLanguageModel
+from unsloth.chat_templates import get_chat_template
 from config import Paths, ModelConfig
 
 
@@ -11,6 +12,7 @@ def main():
         dtype=None,
         device_map="auto",
     )
+    tokenizer = get_chat_template(tokenizer, chat_template="gemma-4-thinking")
     FastLanguageModel.for_inference(model)
 
     with open(Paths["dataset"], "r", encoding="utf-8") as f:
@@ -20,7 +22,7 @@ def main():
 
     for i, entry in enumerate(test_samples):
         messages = [
-            {"role": "user", "content": [{"type": "text", "text": f"{entry['instruction']}\n{entry['input']}"}]},
+            {"role": "user", "content": f"{entry['instruction']}\n{entry['input']}"},
         ]
         inputs = tokenizer.apply_chat_template(
             messages,
